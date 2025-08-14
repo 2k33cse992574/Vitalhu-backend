@@ -11,7 +11,7 @@ const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
 const progressRoutes = require('./routes/progress');
 const exerciseRoutes = require('./routes/exercise');
-const painReliefRoutes = require('./routes/painRelief');
+// const painReliefRoutes = require('./routes/painRelief'); // Removed
 const nutritionRoutes = require('./routes/nutrition');
 const postureRoutes = require('./routes/posture');
 const notificationRoutes = require('./routes/notifications');
@@ -30,7 +30,7 @@ app.use('/auth', authRoutes);
 app.use('/profile', profileRoutes);
 app.use('/progress', progressRoutes);
 app.use('/exercise', exerciseRoutes);
-app.use('/pain-relief', painReliefRoutes);
+// app.use('/pain-relief', painReliefRoutes); // Removed
 app.use('/nutrition', nutritionRoutes);
 app.use('/posture-check', postureRoutes);
 app.use('/notifications', notificationRoutes);
