@@ -1,0 +1,39 @@
+{
+  "info": {
+    "name": "Pain Relief Endpoint",
+    "_postman_id": "pain-relief-collection",
+    "description": "Test /pain-relief endpoint with JWT",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Pain Relief Routine",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer <YOUR_JWT_TOKEN>",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"exerciseName\": \"Back Stretch\",\n    \"language\": \"en\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/pain-relief",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["pain-relief"]
+        }
+      },
+      "response": []
+    }
+  ]
+}
