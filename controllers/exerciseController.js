@@ -11,8 +11,7 @@ const KNOWN_EXERCISES = [
 
 const PAIN_KEYWORDS = [
     'back pain','neck pain','knee pain','shoulder pain',
-    'lower back','hip pain','wrist pain','ankle pain',
-    'elbow pain','leg pain','foot pain'
+    'lower back','hip pain','wrist pain','ankle pain','elbow pain','leg pain','foot pain'
 ];
 
 exports.getExercise = async (req, res) => {
@@ -42,7 +41,7 @@ exports.getExercise = async (req, res) => {
                 savedExercises.push(saved);
             }
 
-            return res.json(savedExercises);
+            return res.json(savedExercises); // returns array of exercises
         }
 
         // =========================
@@ -61,11 +60,10 @@ exports.getExercise = async (req, res) => {
         if (exercise) return res.json(exercise);
 
         // =========================
-        // AI fallback for exercise
+        // AI fallback for unknown exercise
         // =========================
         const aiPlan = aiHelper.generateExercisePlan(searchTerm, category, req.user.id);
 
-        // Map AI plan to Exercise schema fields
         const newExercise = new Exercise({
             user: req.user.id,
             title: aiPlan.title || searchTerm,
