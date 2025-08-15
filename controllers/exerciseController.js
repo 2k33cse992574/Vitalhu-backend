@@ -31,7 +31,6 @@ exports.getExercise = async (req, res) => {
         if (isPainProblem(queryLower) && !isKnownExercise(queryLower)) {
             const exercises = aiHelper.generatePainReliefRoutine(searchTerm, language || 'en');
 
-            // Save exercises in DB and return
             const savedExercises = [];
             for (const ex of exercises) {
                 const saved = await new Exercise({
@@ -54,7 +53,6 @@ exports.getExercise = async (req, res) => {
         });
 
         if (!exercise) {
-            // fallback partial match
             exercise = await Exercise.findOne({
                 title: { $regex: searchTerm, $options: 'i' }
             });
@@ -67,6 +65,7 @@ exports.getExercise = async (req, res) => {
         // =========================
         const aiPlan = aiHelper.generateExercisePlan(searchTerm, category, req.user.id);
 
+        // Map AI plan to Exercise schema fields
         const newExercise = new Exercise({
             user: req.user.id,
             title: aiPlan.title || searchTerm,
@@ -78,7 +77,7 @@ exports.getExercise = async (req, res) => {
         return res.json(newExercise);
 
     } catch (err) {
-        console.error('Error in getExercise:', err.message);
+        console.error('Error in getExercise:', err);
         res.status(500).json({ message: 'Server error' });
     }
 };
