@@ -29,26 +29,21 @@ exports.getExercise = async (req, res) => {
         // PAIN SEARCH → 2–3 unique exercises
         // =========================
         if (isPainProblem(queryLower) && !isKnownExercise(queryLower)) {
-            let exercises = await aiHelper.generatePainReliefRoutine(searchTerm, language || 'en');
+            const exercises = aiHelper.generatePainReliefRoutine(searchTerm, language || 'en');
 
-            // Ensure array & take up to 3 unique exercises
-            exercises = Array.isArray(exercises) ? exercises : [exercises];
-            const uniqueExercises = [];
-            const titles = new Set();
+            // Save exercises in DB and return
+            const savedExercises = [];
             for (const ex of exercises) {
-                if (!titles.has(ex.title) && uniqueExercises.length < 3) {
-                    titles.add(ex.title);
-                    const saved = await new Exercise({
-                        user: req.user.id,
-                        title: ex.title,
-                        category: ex.category || 'pain-relief',
-                        instructions: ex.instructions || []
-                    }).save();
-                    uniqueExercises.push(saved);
-                }
+                const saved = await new Exercise({
+                    user: req.user.id,
+                    title: ex.title,
+                    category: 'pain-relief',
+                    instructions: ex.instructions
+                }).save();
+                savedExercises.push(saved);
             }
 
-            return res.json(uniqueExercises);
+            return res.json(savedExercises);
         }
 
         // =========================
@@ -59,6 +54,7 @@ exports.getExercise = async (req, res) => {
         });
 
         if (!exercise) {
+            // fallback partial match
             exercise = await Exercise.findOne({
                 title: { $regex: searchTerm, $options: 'i' }
             });
@@ -66,19 +62,16 @@ exports.getExercise = async (req, res) => {
 
         if (exercise) return res.json(exercise);
 
-        // AI fallback
-        const aiPlan = await aiHelper.generateExercisePlan(
-            searchTerm,
-            category,
-            req.user.id,
-            true
-        );
+        // =========================
+        // AI fallback for exercise
+        // =========================
+        const aiPlan = aiHelper.generateExercisePlan(searchTerm, category, req.user.id);
 
         const newExercise = new Exercise({
             user: req.user.id,
             title: aiPlan.title || searchTerm,
             category: aiPlan.category || category || 'general',
-            instructions: aiPlan.instructions || []
+            instructions: aiPlan.routine || []
         });
 
         await newExercise.save();
@@ -90,6 +83,9 @@ exports.getExercise = async (req, res) => {
     }
 };
 
+// =========================
+// Helpers
+// =========================
 function isPainProblem(term) {
     return PAIN_KEYWORDS.some(k => term.includes(k));
 }
