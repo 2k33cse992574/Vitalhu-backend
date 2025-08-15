@@ -1,20 +1,18 @@
 const aiHelper = require('../utils/aiHelper');
 const Exercise = require('../models/Exercise');
 
-// Known exercises (for exact exercise detection)
 const KNOWN_EXERCISES = [
-    'push ups', 'push-up', 'pushups',
-    'plank', 'squats', 'burpees', 'lunges',
-    'pull ups', 'pull-up', 'running', 'jogging',
-    'cycling', 'bench press', 'deadlift', 'yoga',
-    'stretching', 'zumba', 'jump rope'
+    'push ups','push-up','pushups',
+    'plank','squats','burpees','lunges',
+    'pull ups','pull-up','running','jogging',
+    'cycling','bench press','deadlift','yoga',
+    'stretching','zumba','jump rope'
 ];
 
-// Pain keywords
 const PAIN_KEYWORDS = [
-    'back pain', 'neck pain', 'knee pain', 'shoulder pain',
-    'lower back', 'hip pain', 'wrist pain', 'ankle pain',
-    'elbow pain', 'leg pain', 'foot pain'
+    'back pain','neck pain','knee pain','shoulder pain',
+    'lower back','hip pain','wrist pain','ankle pain',
+    'elbow pain','leg pain','foot pain'
 ];
 
 exports.getExercise = async (req, res) => {
@@ -28,19 +26,17 @@ exports.getExercise = async (req, res) => {
         const queryLower = searchTerm.toLowerCase();
 
         // =========================
-        // PAIN SEARCH → return 2–3 unique exercises
+        // PAIN SEARCH → 2–3 unique exercises
         // =========================
         if (isPainProblem(queryLower) && !isKnownExercise(queryLower)) {
-            let plans = await aiHelper.generatePainReliefRoutine(searchTerm, language || 'en');
+            let exercises = await aiHelper.generatePainReliefRoutine(searchTerm, language || 'en');
 
-            // Ensure array
-            plans = Array.isArray(plans) ? plans : [plans];
-
-            // Limit to 3 unique exercises
-            const exercises = [];
+            // Ensure array & take up to 3 unique exercises
+            exercises = Array.isArray(exercises) ? exercises : [exercises];
+            const uniqueExercises = [];
             const titles = new Set();
-            for (const ex of plans) {
-                if (!titles.has(ex.title) && exercises.length < 3) {
+            for (const ex of exercises) {
+                if (!titles.has(ex.title) && uniqueExercises.length < 3) {
                     titles.add(ex.title);
                     const saved = await new Exercise({
                         user: req.user.id,
@@ -48,39 +44,34 @@ exports.getExercise = async (req, res) => {
                         category: ex.category || 'pain-relief',
                         instructions: ex.instructions || []
                     }).save();
-                    exercises.push(saved);
+                    uniqueExercises.push(saved);
                 }
             }
 
-            return res.json(exercises);
+            return res.json(uniqueExercises);
         }
 
         // =========================
-        // EXERCISE SEARCH → return single exercise with instructions/posture
+        // EXERCISE SEARCH → single exercise
         // =========================
         let exercise = await Exercise.findOne({
-            title: { $regex: `^${searchTerm}$`, $options: "i" }
+            title: { $regex: `^${searchTerm}$`, $options: 'i' }
         });
 
         if (!exercise) {
-            // fallback partial match
             exercise = await Exercise.findOne({
-                title: { $regex: searchTerm, $options: "i" }
+                title: { $regex: searchTerm, $options: 'i' }
             });
         }
 
-        if (exercise) {
-            return res.json(exercise); // single exercise
-        }
+        if (exercise) return res.json(exercise);
 
-        // =========================
-        // AI fallback for exercise
-        // =========================
+        // AI fallback
         const aiPlan = await aiHelper.generateExercisePlan(
             searchTerm,
             category,
             req.user.id,
-            true // strict mode → ensures correct exercise
+            true
         );
 
         const newExercise = new Exercise({
@@ -91,7 +82,6 @@ exports.getExercise = async (req, res) => {
         });
 
         await newExercise.save();
-
         return res.json(newExercise);
 
     } catch (err) {
@@ -100,9 +90,8 @@ exports.getExercise = async (req, res) => {
     }
 };
 
-// Helpers
 function isPainProblem(term) {
-    return PAIN_KEYWORDS.some(keyword => term.includes(keyword));
+    return PAIN_KEYWORDS.some(k => term.includes(k));
 }
 
 function isKnownExercise(term) {
