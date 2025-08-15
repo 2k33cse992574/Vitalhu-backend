@@ -1,7 +1,7 @@
 const aiHelper = require('../utils/aiHelper');
 const Exercise = require('../models/Exercise');
 
-// Known exercises
+// Known exercises (for exact exercise detection)
 const KNOWN_EXERCISES = [
     'push ups', 'push-up', 'pushups',
     'plank', 'squats', 'burpees', 'lunges',
@@ -28,32 +28,35 @@ exports.getExercise = async (req, res) => {
         const queryLower = searchTerm.toLowerCase();
 
         // =========================
-        // PAIN SEARCH → return 2–3 exercises
+        // PAIN SEARCH → return 2–3 unique exercises
         // =========================
         if (isPainProblem(queryLower) && !isKnownExercise(queryLower)) {
-            // Generate pain relief routine (array of exercises)
-            const plans = await aiHelper.generatePainReliefRoutine(searchTerm, language || 'en');
+            let plans = await aiHelper.generatePainReliefRoutine(searchTerm, language || 'en');
 
-            // Ensure we have an array of 2–3 exercises
-            const exercises = Array.isArray(plans) ? plans.slice(0, 3) : [plans];
+            // Ensure array
+            plans = Array.isArray(plans) ? plans : [plans];
 
-            // Save exercises to DB
-            const savedExercises = [];
-            for (const ex of exercises) {
-                const saved = await new Exercise({
-                    user: req.user.id,
-                    title: ex.title || searchTerm,
-                    category: ex.category || 'pain-relief',
-                    instructions: ex.instructions || []
-                }).save();
-                savedExercises.push(saved);
+            // Limit to 3 unique exercises
+            const exercises = [];
+            const titles = new Set();
+            for (const ex of plans) {
+                if (!titles.has(ex.title) && exercises.length < 3) {
+                    titles.add(ex.title);
+                    const saved = await new Exercise({
+                        user: req.user.id,
+                        title: ex.title,
+                        category: ex.category || 'pain-relief',
+                        instructions: ex.instructions || []
+                    }).save();
+                    exercises.push(saved);
+                }
             }
 
-            return res.json(savedExercises);
+            return res.json(exercises);
         }
 
         // =========================
-        // EXERCISE SEARCH → return single exercise with posture details
+        // EXERCISE SEARCH → return single exercise with instructions/posture
         // =========================
         let exercise = await Exercise.findOne({
             title: { $regex: `^${searchTerm}$`, $options: "i" }
