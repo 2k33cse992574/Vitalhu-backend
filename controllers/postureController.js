@@ -1,59 +1,49 @@
 const aiHelper = require('../utils/aiHelper');
 const Posture = require('../models/Posture');
 
-/**
- * @desc Analyze posture and save feedback
- * @route POST /api/posture
- * @access Private
- */
 exports.checkPosture = async (req, res) => {
-    const { postureData, language } = req.body;
+  const { postureData, language } = req.body;
 
-    if (!postureData) {
-        return res.status(400).json({ message: 'Posture data is required' });
-    }
+  if (!postureData || typeof postureData !== 'object') {
+    return res.status(400).json({ message: 'postureData (object) is required' });
+  }
 
-    try {
-        // 1. Analyze posture using AI helper
-        const feedback = aiHelper.analyzePosture(postureData, language || 'en');
+  try {
+    const result = aiHelper.analyzePosture(postureData, language || 'en'); // { title, instructions }
 
-        // 2. Save result to database
-        const newPosture = new Posture({
-            user: req.user.id,
-            feedback,
-            language: language || 'en',
-            postureData
-        });
+    const newPosture = new Posture({
+      user: req.user.id,
+      feedback: {
+        title: result.title,
+        instructions: Array.isArray(result.instructions) ? result.instructions : []
+      },
+      language: (language || 'en').toLowerCase(),
+      postureData
+    });
 
-        await newPosture.save();
+    await newPosture.save();
 
-        // 3. Send response back to client
-        res.json({
-            message: 'Posture analyzed successfully',
-            feedback,
-            createdAt: newPosture.createdAt
-        });
-
-    } catch (err) {
-        console.error('Posture analysis error:', err.message);
-        res.status(500).send('Server error');
-    }
+    return res.json({
+      message: 'Posture analyzed successfully',
+      feedback: result,               // keep response shape same as before
+      createdAt: newPosture.createdAt
+    });
+  } catch (err) {
+    console.error('Posture save error:', err);
+    return res.status(500).send('Server error');
+  }
 };
 
-/**
- * @desc Get all posture feedback history for logged-in user
- * @route GET /api/posture
- * @access Private
- */
 exports.getPostureHistory = async (req, res) => {
-    try {
-        const history = await Posture.find({ user: req.user.id })
-            .select('feedback language postureData createdAt')
-            .sort({ createdAt: -1 }); // latest first
+  try {
+    const history = await Posture
+      .find({ user: req.user.id })
+      .select('feedback language postureData createdAt')
+      .sort({ createdAt: -1 });
 
-        res.json(history);
-    } catch (err) {
-        console.error('Fetch posture history error:', err.message);
-        res.status(500).send('Server error');
-    }
+    return res.json(history);
+  } catch (err) {
+    console.error('Fetch posture history error:', err);
+    return res.status(500).send('Server error');
+  }
 };
