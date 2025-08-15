@@ -1,27 +1,39 @@
-// controllers/exerciseController.js
-
 const aiHelper = require('../utils/aiHelper');
 const Exercise = require('../models/Exercise');
+
+// Known common exercises for better detection
+const KNOWN_EXERCISES = [
+    'push ups', 'push-up', 'pushups',
+    'plank', 'squats', 'burpees', 'lunges',
+    'pull ups', 'pull-up', 'running', 'jogging',
+    'cycling', 'bench press', 'deadlift', 'yoga',
+    'stretching', 'zumba', 'jump rope'
+];
+
+// Pain-related keywords
+const PAIN_KEYWORDS = [
+    'back pain', 'neck pain', 'knee pain', 'shoulder pain',
+    'lower back', 'hip pain', 'wrist pain', 'ankle pain',
+    'elbow pain', 'leg pain', 'foot pain'
+];
 
 exports.getExercise = async (req, res) => {
     const { searchTerm, category, language } = req.body;
 
-    // Validate input
     if (!searchTerm || searchTerm.trim() === '') {
         return res.status(400).json({ message: 'searchTerm is required' });
     }
 
     try {
-        // =========================
-        // Pain problem search flow
-        // =========================
-        if (isPainProblem(searchTerm)) {
-            const plan = await aiHelper.generatePainReliefRoutine(searchTerm, language || 'en');
+        const queryLower = searchTerm.toLowerCase();
 
-            // Ensure we always have an array
+        // =========================
+        // PAIN SEARCH
+        // =========================
+        if (isPainProblem(queryLower) && !isKnownExercise(queryLower)) {
+            const plan = await aiHelper.generatePainReliefRoutine(searchTerm, language || 'en');
             const exercises = Array.isArray(plan) ? plan : [plan];
 
-            // Save each pain-relief exercise for the user
             for (const ex of exercises) {
                 await new Exercise({
                     user: req.user.id,
@@ -35,32 +47,28 @@ exports.getExercise = async (req, res) => {
         }
 
         // =========================
-        // Standard exercise search flow
+        // EXERCISE SEARCH
         // =========================
-
-        // 1. Exact match from DB
         let exercises = await Exercise.find({
             title: { $regex: `^${searchTerm}$`, $options: "i" }
         });
 
-        // 2. Fallback: partial match from DB
         if (exercises.length === 0) {
             exercises = await Exercise.find({
                 title: { $regex: searchTerm, $options: "i" }
             });
         }
 
-        // 3. If found in DB, return results
         if (exercises.length > 0) {
             return res.json(exercises);
         }
 
-        // 4. AI fallback: force it to return only that exercise
+        // AI fallback — force specific exercise
         const aiPlan = await aiHelper.generateExercisePlan(
             searchTerm,
             category,
             req.user.id,
-            true // strict mode if supported
+            true // strict mode
         );
 
         const newExercise = {
@@ -69,7 +77,6 @@ exports.getExercise = async (req, res) => {
             instructions: aiPlan.instructions || []
         };
 
-        // Save AI-generated exercise for this user
         await new Exercise({
             user: req.user.id,
             ...newExercise
@@ -83,11 +90,10 @@ exports.getExercise = async (req, res) => {
     }
 };
 
-// Helper to detect pain-related terms
 function isPainProblem(term) {
-    const painKeywords = [
-        'back pain', 'neck pain', 'knee pain', 'shoulder pain',
-        'lower back', 'hip pain', 'wrist pain'
-    ];
-    return painKeywords.some(keyword => term.toLowerCase().includes(keyword));
+    return PAIN_KEYWORDS.some(keyword => term.includes(keyword));
+}
+
+function isKnownExercise(term) {
+    return KNOWN_EXERCISES.some(ex => term === ex || term.includes(ex));
 }
