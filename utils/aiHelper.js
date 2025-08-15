@@ -30,7 +30,8 @@ exports.generateExercisePlan = (searchTerm, category, userId) => {
     }
 
     if (searchTerm) {
-        if (searchTerm.toLowerCase().includes('back')) {
+        const term = searchTerm.toLowerCase();
+        if (term.includes('back')) {
             return {
                 title: "Back Pain Relief Routine",
                 category: "yoga",
@@ -50,12 +51,11 @@ exports.generateExercisePlan = (searchTerm, category, userId) => {
    Pain Relief Logic
 =============================== */
 exports.generatePainReliefRoutine = (exerciseName, language) => {
-    // Validate exerciseName
-    if (!exerciseName || typeof exerciseName !== 'string' || exerciseName.trim() === '') {
-        exerciseName = "General Stretch"; // default name
-    }
+    const name = (exerciseName && typeof exerciseName === 'string')
+        ? exerciseName.trim()
+        : "General Stretch";
 
-    language = language || 'en'; // default language
+    language = (language || 'en').toLowerCase();
 
     const routines = {
         "back stretch": {
@@ -88,22 +88,21 @@ exports.generatePainReliefRoutine = (exerciseName, language) => {
         }
     };
 
-    const key = exerciseName.toLowerCase();
+    const key = name.toLowerCase();
     const routineData = routines[key];
 
     if (routineData) {
         return {
-            title: `${exerciseName} Routine`,
+            title: `${name} Routine`,
             instructions: routineData[language] || routineData['en']
         };
     }
 
-    // Default routine if exercise not found
     return {
         title: "General Stretch Routine",
-        instructions: language === 'hi' ?
-            ["कुर्सी पर सीधे बैठें", "हाथ ऊपर उठाएँ", "10 सेकंड के लिए पकड़ें"] :
-            ["Sit straight on a chair", "Raise your arms", "Hold for 10 seconds"]
+        instructions: language === 'hi'
+            ? ["कुर्सी पर सीधे बैठें", "हाथ ऊपर उठाएँ", "10 सेकंड के लिए पकड़ें"]
+            : ["Sit straight on a chair", "Raise your arms", "Hold for 10 seconds"]
     };
 };
 
@@ -111,6 +110,7 @@ exports.generatePainReliefRoutine = (exerciseName, language) => {
    Nutrition Logic
 =============================== */
 exports.generateNutritionPlan = async (userId, language) => {
+    language = (language || 'en').toLowerCase();
     try {
         const user = await User.findById(userId);
         if (!user) throw new Error('User not found');
@@ -137,33 +137,44 @@ exports.generateNutritionPlan = async (userId, language) => {
         console.error(err.message);
         return {
             title: "General Diet Plan",
-            plan: language === 'hi' ?
-                ["संतुलित आहार लें", "दिन में 2-3 लीटर पानी पिएँ"] :
-                ["Have a balanced diet", "Drink 2-3 liters of water daily"]
+            plan: language === 'hi'
+                ? ["संतुलित आहार लें", "दिन में 2-3 लीटर पानी पिएँ"]
+                : ["Have a balanced diet", "Drink 2-3 liters of water daily"]
         };
     }
 };
 
 /* ===============================
-   Posture Logic
+   Posture Logic (Improved)
 =============================== */
 exports.analyzePosture = (postureData, language) => {
-    let instructions = [];
+    language = (language || 'en').toLowerCase();
+    const instructions = [];
 
-    if (postureData.backAngle && postureData.backAngle > 10) {
-        instructions.push(language === 'hi' ? "पीठ सीधी करें" : "Straighten your back");
+    if (!postureData || typeof postureData !== 'object') {
+        return {
+            title: "Posture Feedback",
+            instructions: language === 'hi'
+                ? ["कोई मुद्रा डेटा उपलब्ध नहीं है"]
+                : ["No posture data available"]
+        };
     }
 
-    if (postureData.neckAngle && postureData.neckAngle > 15) {
-        instructions.push(language === 'hi' ? "गर्दन को सीधा रखें" : "Keep your neck straight");
+    if (postureData.backAngle > 10) {
+        instructions.push(language === 'hi' ? "पीठ को सीधा रखें" : "Keep your back straight");
     }
-
-    if (postureData.shouldersLevel && postureData.shouldersLevel > 5) {
-        instructions.push(language === 'hi' ? "कंधे बराबर रखें" : "Level your shoulders");
+    if (postureData.neckAngle > 15) {
+        instructions.push(language === 'hi' ? "गर्दन को सीधा रखें" : "Keep your neck aligned");
+    }
+    if (postureData.shouldersLevel > 5) {
+        instructions.push(language === 'hi' ? "कंधों को बराबर रखें" : "Level your shoulders evenly");
+    }
+    if (postureData.hipsAngle > 8) {
+        instructions.push(language === 'hi' ? "कूल्हों को सीधा करें" : "Keep your hips balanced");
     }
 
     if (instructions.length === 0) {
-        instructions.push(language === 'hi' ? "अच्छी मुद्रा" : "Good posture");
+        instructions.push(language === 'hi' ? "आपकी मुद्रा सही है" : "Your posture looks good");
     }
 
     return {
