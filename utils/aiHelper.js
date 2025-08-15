@@ -1,128 +1,136 @@
+// utils/aiHelper.js
+
 const User = require('../models/User');
 
 /* ===============================
-   Exercise Logic
+   Exercise Logic (Single Exercise)
 =============================== */
-exports.generateExercisePlan = (searchTerm, category, userId) => {
-    const exercises = {
-        yoga: [
-            { title: "Sun Salutation", duration: "10 min" },
-            { title: "Cat-Cow Stretch", duration: "5 min" }
-        ],
-        strength: [
-            { title: "Bodyweight Squats", duration: "10 min" },
-            { title: "Push-ups", duration: "5 min" }
-        ],
-        cardio: [
-            { title: "Jumping Jacks", duration: "5 min" },
-            { title: "High Knees", duration: "5 min" }
-        ]
-    };
 
-    if (category && exercises[category]) {
+const EXERCISES = {
+    yoga: [
+        { title: "Sun Salutation", duration: "10 min" },
+        { title: "Cat-Cow Stretch", duration: "5 min" }
+    ],
+    strength: [
+        { title: "Bodyweight Squats", duration: "10 min" },
+        { title: "Push-ups", duration: "5 min" }
+    ],
+    cardio: [
+        { title: "Jumping Jacks", duration: "5 min" },
+        { title: "High Knees", duration: "5 min" }
+    ]
+};
+
+exports.generateExercisePlan = (searchTerm, category, userId) => {
+    if (category && EXERCISES[category]) {
         return {
             title: `${category.charAt(0).toUpperCase() + category.slice(1)} Routine`,
             category,
-            routine: exercises[category]
+            routine: EXERCISES[category]
         };
     }
 
     if (searchTerm) {
         const term = searchTerm.toLowerCase();
-        if (term.includes('back')) {
-            return {
-                title: "Back Pain Relief Routine",
-                category: "yoga",
-                routine: exercises.yoga
-            };
-        }
+        // single exercise routine for normal search
+        return {
+            title: `${searchTerm.charAt(0).toUpperCase() + searchTerm.slice(1)} Routine`,
+            category: 'general',
+            routine: [{ title: searchTerm }]
+        };
     }
 
     return {
         title: "Beginner Routine",
         category: "yoga",
-        routine: exercises.yoga
+        routine: EXERCISES.yoga
     };
 };
 
 /* ===============================
-   Pain Relief Logic (2–3 exercises)
+   Pain Relief Logic (2–3 Exercises)
 =============================== */
-exports.generatePainReliefRoutine = (exerciseName, language) => {
-    const name = (exerciseName && typeof exerciseName === 'string')
-        ? exerciseName.trim()
-        : "General Stretch";
 
-    language = (language || 'en').toLowerCase();
+const PAIN_EXERCISES = {
+    "back pain": [
+        { title: "Cat-Cow Stretch" },
+        { title: "Child's Pose" },
+        { title: "Pelvic Tilt" }
+    ],
+    "neck pain": [
+        { title: "Neck Tilt Stretch" },
+        { title: "Chin Tuck" },
+        { title: "Shoulder Shrugs" }
+    ],
+    "knee pain": [
+        { title: "Quadriceps Stretch" },
+        { title: "Hamstring Curl" },
+        { title: "Glute Bridge" }
+    ],
+    "shoulder pain": [
+        { title: "Shoulder Rolls" },
+        { title: "Arm Circles" },
+        { title: "Cross-Body Shoulder Stretch" }
+    ]
+};
 
-    const routines = {
-        "back pain": [
-            {
-                title: "Seated Back Stretch",
-                instructions: language === 'hi'
-                    ? ["कुर्सी पर सीधे बैठें", "पीठ झुकाएँ", "5 बार दोहराएँ"]
-                    : ["Sit straight on a chair", "Bend back gently", "Repeat 5 times"]
-            },
-            {
-                title: "Standing Forward Bend",
-                instructions: language === 'hi'
-                    ? ["सीधे खड़े हों", "आगे झुकें", "10 सेकंड पकड़ें"]
-                    : ["Stand straight", "Bend forward", "Hold 10 seconds"]
-            },
-            {
-                title: "Cat-Cow Stretch",
-                instructions: language === 'hi'
-                    ? ["हाथ और घुटनों पर आएँ", "पीठ को ऊपर और नीचे झुकाएँ"]
-                    : ["Get on hands and knees", "Arch and round your back"]
-            }
-        ],
-        "neck pain": [
-            {
-                title: "Neck Tilt Right",
-                instructions: language === 'hi'
-                    ? ["सिर को दाएं झुकाएँ", "5 सेकंड रोकें", "दाईं और बाईं ओर दोहराएँ"]
-                    : ["Tilt head to right", "Hold 5 seconds", "Repeat left and right"]
-            },
-            {
-                title: "Neck Tilt Left",
-                instructions: language === 'hi'
-                    ? ["सिर को बाएं झुकाएँ", "5 सेकंड रोकें", "दोहराएँ"]
-                    : ["Tilt head to left", "Hold 5 seconds", "Repeat"]
-            },
-            {
-                title: "Neck Rotation",
-                instructions: language === 'hi'
-                    ? ["सिर को धीरे-धीरे घुमाएँ", "दाईं और बाईं ओर"]
-                    : ["Rotate head slowly", "Right and left"]
-            }
-        ]
-    };
-
-    const key = name.toLowerCase();
-    if (routines[key]) return routines[key];
-
-    // fallback general stretch (2 exercises)
-    return [
-        {
-            title: "General Stretch 1",
-            instructions: language === 'hi'
-                ? ["कुर्सी पर सीधे बैठें", "हाथ ऊपर उठाएँ", "10 सेकंड पकड़ें"]
-                : ["Sit straight on a chair", "Raise arms", "Hold 10 seconds"]
-        },
-        {
-            title: "General Stretch 2",
-            instructions: language === 'hi'
-                ? ["सिर को धीरे-धीरे घुमाएँ", "5 बार दोहराएँ"]
-                : ["Rotate head slowly", "Repeat 5 times"]
-        }
+exports.generatePainReliefRoutine = async (painName, language = "en") => {
+    const key = painName.toLowerCase();
+    const exercises = PAIN_EXERCISES[key] || [
+        { title: "General Stretch 1" },
+        { title: "General Stretch 2" }
     ];
+
+    return exercises.map(ex => ({
+        title: ex.title,
+        instructions: language === 'hi'
+            ? ["इस व्यायाम को सावधानीपूर्वक करें", "5 बार दोहराएँ"]
+            : ["Perform this exercise carefully", "Repeat 5 times"]
+    }));
 };
 
 /* ===============================
-   Posture Logic
+   Nutrition Plan
 =============================== */
-exports.analyzePosture = (postureData, language) => {
-    language = (language || 'en').toLowerCase();
+
+exports.generateNutritionPlan = async (userId, language = "en") => {
+    language = language.toLowerCase();
+    try {
+        const user = await User.findById(userId);
+        if (!user) throw new Error('User not found');
+
+        const healthConditions = user.healthConditions || [];
+        let plan = [];
+
+        if (healthConditions.includes('diabetes')) {
+            plan.push(language === 'hi' ? "नाश्ते में ओट्स खाएं" : "Eat oats for breakfast");
+            plan.push(language === 'hi' ? "दोपहर में सलाद खाएं" : "Eat salad for lunch");
+        } else if (healthConditions.includes('high blood pressure')) {
+            plan.push(language === 'hi' ? "कम नमक वाला भोजन खाएं" : "Eat low-salt meals");
+        } else {
+            plan.push(language === 'hi' ? "संतुलित आहार लें" : "Have a balanced diet");
+        }
+
+        plan.push(language === 'hi' ? "दिन में 2-3 लीटर पानी पिएँ" : "Drink 2-3 liters of water daily");
+
+        return { title: "Personalized Diet Plan", plan };
+    } catch (err) {
+        console.error(err.message);
+        return {
+            title: "General Diet Plan",
+            plan: language === 'hi'
+                ? ["संतुलित आहार लें", "दिन में 2-3 लीटर पानी पिएँ"]
+                : ["Have a balanced diet", "Drink 2-3 liters of water daily"]
+        };
+    }
+};
+
+/* ===============================
+   Posture Analysis
+=============================== */
+
+exports.analyzePosture = (postureData, language = "en") => {
+    language = language.toLowerCase();
     const instructions = [];
 
     if (!postureData || typeof postureData !== 'object') {
@@ -134,10 +142,18 @@ exports.analyzePosture = (postureData, language) => {
         };
     }
 
-    if (postureData.backAngle > 10) instructions.push(language === 'hi' ? "पीठ को सीधा रखें" : "Keep your back straight");
-    if (postureData.neckAngle > 15) instructions.push(language === 'hi' ? "गर्दन को सीधा रखें" : "Keep your neck aligned");
-    if (postureData.shouldersLevel > 5) instructions.push(language === 'hi' ? "कंधों को बराबर रखें" : "Level your shoulders evenly");
-    if (postureData.hipsAngle > 8) instructions.push(language === 'hi' ? "कूल्हों को सीधा करें" : "Keep your hips balanced");
+    if (postureData.backAngle > 10) {
+        instructions.push(language === 'hi' ? "पीठ को सीधा रखें" : "Keep your back straight");
+    }
+    if (postureData.neckAngle > 15) {
+        instructions.push(language === 'hi' ? "गर्दन को सीधा रखें" : "Keep your neck aligned");
+    }
+    if (postureData.shouldersLevel > 5) {
+        instructions.push(language === 'hi' ? "कंधों को बराबर रखें" : "Level your shoulders evenly");
+    }
+    if (postureData.hipsAngle > 8) {
+        instructions.push(language === 'hi' ? "कूल्हों को सीधा करें" : "Keep your hips balanced");
+    }
 
     if (postureData.selectedExercise) {
         instructions.push(language === 'hi'
@@ -145,7 +161,9 @@ exports.analyzePosture = (postureData, language) => {
             : `Maintain proper posture for ${postureData.selectedExercise}`);
     }
 
-    if (instructions.length === 0) instructions.push(language === 'hi' ? "आपकी मुद्रा सही है" : "Your posture looks good");
+    if (instructions.length === 0) {
+        instructions.push(language === 'hi' ? "आपकी मुद्रा सही है" : "Your posture looks good");
+    }
 
     return { title: "Posture Feedback", instructions };
 };

@@ -1,3 +1,4 @@
+// controllers/exerciseController.js
 const aiHelper = require('../utils/aiHelper');
 const Exercise = require('../models/Exercise');
 
@@ -11,7 +12,8 @@ const KNOWN_EXERCISES = [
 
 const PAIN_KEYWORDS = [
     'back pain','neck pain','knee pain','shoulder pain',
-    'lower back','hip pain','wrist pain','ankle pain','elbow pain','leg pain','foot pain'
+    'lower back','hip pain','wrist pain','ankle pain',
+    'elbow pain','leg pain','foot pain'
 ];
 
 exports.getExercise = async (req, res) => {
@@ -28,20 +30,24 @@ exports.getExercise = async (req, res) => {
         // PAIN SEARCH → 2–3 unique exercises
         // =========================
         if (isPainProblem(queryLower) && !isKnownExercise(queryLower)) {
-            const exercises = aiHelper.generatePainReliefRoutine(searchTerm, language || 'en');
+            // Await AI helper in case it’s async
+            const exercises = await aiHelper.generatePainReliefRoutine(searchTerm, language || 'en');
+
+            // Ensure it's always an array
+            const exercisesArray = Array.isArray(exercises) ? exercises : [exercises];
 
             const savedExercises = [];
-            for (const ex of exercises) {
+            for (const ex of exercisesArray) {
                 const saved = await new Exercise({
-                    user: req.user.id,
-                    title: ex.title,
+                    user: req.user?.id,       // Safe optional chaining
+                    title: ex.title || 'Pain Relief Exercise',
                     category: 'pain-relief',
-                    instructions: ex.instructions
+                    instructions: Array.isArray(ex.instructions) ? ex.instructions : [ex.instructions || 'Follow instructions']
                 }).save();
                 savedExercises.push(saved);
             }
 
-            return res.json(savedExercises); // returns array of exercises
+            return res.json(savedExercises);
         }
 
         // =========================
@@ -60,15 +66,16 @@ exports.getExercise = async (req, res) => {
         if (exercise) return res.json(exercise);
 
         // =========================
-        // AI fallback for unknown exercise
+        // AI fallback for exercise
         // =========================
-        const aiPlan = aiHelper.generateExercisePlan(searchTerm, category, req.user.id);
+        const aiPlan = await aiHelper.generateExercisePlan(searchTerm, category, req.user?.id);
 
+        // Map AI plan to Exercise schema fields
         const newExercise = new Exercise({
-            user: req.user.id,
+            user: req.user?.id,
             title: aiPlan.title || searchTerm,
             category: aiPlan.category || category || 'general',
-            instructions: aiPlan.routine || []
+            instructions: Array.isArray(aiPlan.routine) ? aiPlan.routine : [aiPlan.routine || 'Follow instructions']
         });
 
         await newExercise.save();
@@ -76,7 +83,7 @@ exports.getExercise = async (req, res) => {
 
     } catch (err) {
         console.error('Error in getExercise:', err);
-        res.status(500).json({ message: 'Server error' });
+        return res.status(500).json({ message: 'Server error', error: err.message });
     }
 };
 
