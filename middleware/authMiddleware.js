@@ -1,41 +1,63 @@
+// middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
-module.exports = function (req, res, next) {
-    // Try to read from Authorization header (case-insensitive)
-    let authHeader = req.headers['authorization'] || req.headers['Authorization'];
-    console.log("🔹 Incoming Authorization Header:", authHeader);
+module.exports = async (req, res, next) => {
+    // 1. Extract token from headers (case-insensitive)
+    const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+    console.log("🔹 Auth Header:", authHeader || 'Not found');
 
     if (!authHeader) {
-        return res.status(401).json({ message: 'No token, authorization denied' });
+        console.warn("❌ No auth header");
+        return res.status(401).json({ 
+            success: false,
+            message: 'Authorization token required' 
+        });
     }
 
-    // Support both "Bearer <token>" and "<token>"
-    let token = authHeader.startsWith('Bearer ')
-        ? authHeader.split(' ')[1]
+    // 2. Extract raw token (supports "Bearer <token>" and raw tokens)
+    const token = authHeader.startsWith('Bearer ') 
+        ? authHeader.split(' ')[1] 
         : authHeader;
-
+    
     if (!token) {
-        return res.status(401).json({ message: 'No token, authorization denied' });
+        console.warn("❌ Empty token");
+        return res.status(401).json({ 
+            success: false,
+            message: 'Malformed authorization token' 
+        });
     }
-
     console.log("🔹 Extracted Token:", token);
 
     try {
-        // Verify token with your secret
-        console.log("🔹 Using JWT_SECRET:", process.env.JWT_SECRET);
+        // 3. Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log("🔹 Decoded Payload:", decoded);
+        console.log("🔹 Decoded Token:", decoded);
 
-        // Ensure req.user is set correctly
-        if (decoded.user && decoded.user._id && !decoded.user.id) {
-            decoded.user.id = decoded.user._id;
+        // 4. Attach user to request (either from token or DB)
+        req.user = decoded.user || await User.findById(decoded.id).select('-password');
+        
+        if (!req.user) {
+            console.warn("❌ User not found");
+            return res.status(401).json({ 
+                success: false,
+                message: 'User not found' 
+            });
         }
 
-        req.user = decoded.user;
-        console.log("✅ Authenticated User:", req.user.id || req.user._id);
+        console.log(`✅ Authenticated User: ${req.user._id}`);
         next();
+
     } catch (err) {
-        console.error("❌ JWT Verification Error:", err.message);
-        res.status(401).json({ message: 'Token is not valid' });
+        console.error("❌ JWT Error:", err.message);
+        
+        const message = err.name === 'JsonWebTokenError' 
+            ? 'Invalid token' 
+            : 'Session expired';
+            
+        res.status(401).json({ 
+            success: false,
+            message 
+        });
     }
 };
