@@ -185,12 +185,12 @@ exports.generateExercisePlan = (searchTerm, category, userId) => {
     if (category && EXERCISES[category]) {
         return {
             title: `${category.charAt(0).toUpperCase() + category.slice(1)} Routine`,
-            category,
+            category: category,
             routine: EXERCISES[category]
         };
     }
 
-    // 2. Handle pain-specific searches
+    // 2. Handle pain-specific searches (UNCHANGED)
     const painKey = Object.keys(PAIN_EXERCISES).find(pain => 
         searchTerm.toLowerCase().includes(pain)
     );
@@ -203,9 +203,9 @@ exports.generateExercisePlan = (searchTerm, category, userId) => {
         };
     }
 
-    // 3. Handle general exercise searches
+    // 3. Handle general exercise searches (FIXED)
     if (searchTerm) {
-        const term = searchTerm.toLowerCase();
+        const term = searchTerm.toLowerCase().trim();
         const matchedExercises = ALL_EXERCISES.filter(ex => 
             ex.title.toLowerCase().includes(term) || 
             (ex.description && ex.description.toLowerCase().includes(term))
@@ -214,7 +214,7 @@ exports.generateExercisePlan = (searchTerm, category, userId) => {
         if (matchedExercises.length > 0) {
             return {
                 title: `Search Results for "${searchTerm}"`,
-                category: 'search-results',
+                category: matchedExercises[0].category || 'general', // KEY FIX: Use valid category
                 routine: matchedExercises
             };
         }
@@ -224,7 +224,7 @@ exports.generateExercisePlan = (searchTerm, category, userId) => {
     return {
         title: "Beginner Routine",
         category: "yoga",
-        routine: EXERCISES.yoga.slice(0, 2) // Return first 2 yoga exercises
+        routine: EXERCISES.yoga.slice(0, 2)
     };
 };
 
