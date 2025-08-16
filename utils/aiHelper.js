@@ -1,4 +1,3 @@
-// utils/aiHelper.js
 const User = require('../models/User');
 
 /* ===============================
@@ -39,7 +38,7 @@ const EXERCISES = {
             duration: "10 min",
             description: "Fundamental lower body exercise targeting quads and glutes",
             benefits: ["Builds leg strength", "Improves mobility", "Burns calories"],
-            painRelief: ["knee pain"] // When done correctly
+            painRelief: ["knee pain"]
         },
         { 
             id: "push-ups",
@@ -86,8 +85,10 @@ const EXERCISES = {
     ]
 };
 
-// Flattened exercise list for searching
-const ALL_EXERCISES = Object.values(EXERCISES).flat();
+// Flattened exercise list with category preservation
+const ALL_EXERCISES = Object.entries(EXERCISES).flatMap(([category, exercises]) => 
+    exercises.map(ex => ({ ...ex, category }))
+);
 
 /* ===============================
    Enhanced Pain Relief Database
@@ -177,6 +178,28 @@ const PAIN_EXERCISES = {
 };
 
 /* ===============================
+   Search Term Normalization
+=============================== */
+
+const normalizeSearchTerm = (term) => {
+    const variations = {
+        'pushup': 'push-up',
+        'push ups': 'push-up',
+        'pushups': 'push-up',
+        'squats': 'squat',
+        'jumpingjack': 'jumping-jack'
+    };
+    
+    let normalized = term.toLowerCase().trim();
+    
+    Object.entries(variations).forEach(([variant, standard]) => {
+        normalized = normalized.replace(new RegExp(variant, 'g'), standard);
+    });
+    
+    return normalized;
+};
+
+/* ===============================
    Enhanced Exercise Search Logic
 =============================== */
 
@@ -190,7 +213,7 @@ exports.generateExercisePlan = (searchTerm, category, userId) => {
         };
     }
 
-    // 2. Handle pain-specific searches (UNCHANGED)
+    // 2. Handle pain-specific searches
     const painKey = Object.keys(PAIN_EXERCISES).find(pain => 
         searchTerm.toLowerCase().includes(pain)
     );
@@ -203,19 +226,37 @@ exports.generateExercisePlan = (searchTerm, category, userId) => {
         };
     }
 
-    // 3. Handle general exercise searches (FIXED)
+    // 3. Handle general exercise searches (FIXED IMPLEMENTATION)
     if (searchTerm) {
-        const term = searchTerm.toLowerCase().trim();
-        const matchedExercises = ALL_EXERCISES.filter(ex => 
-            ex.title.toLowerCase().includes(term) || 
-            (ex.description && ex.description.toLowerCase().includes(term))
+        const term = normalizeSearchTerm(searchTerm);
+        
+        // Priority 1: Exact title match
+        const exactMatches = ALL_EXERCISES.filter(ex => 
+            normalizeSearchTerm(ex.title) === term
         );
-
-        if (matchedExercises.length > 0) {
+        
+        // Priority 2: Exact in description
+        const descExactMatches = ALL_EXERCISES.filter(ex => 
+            ex.description && normalizeSearchTerm(ex.description).includes(term)
+        );
+        
+        // Priority 3: Partial matches
+        const partialMatches = ALL_EXERCISES.filter(ex => 
+            normalizeSearchTerm(ex.title).includes(term) || 
+            (ex.description && normalizeSearchTerm(ex.description).includes(term))
+        );
+        
+        // Combine with priority order and remove duplicates
+        const uniqueMatches = [...exactMatches, ...descExactMatches, ...partialMatches]
+            .filter((ex, index, self) => 
+                index === self.findIndex(e => e.id === ex.id)
+            );
+        
+        if (uniqueMatches.length > 0) {
             return {
                 title: `Search Results for "${searchTerm}"`,
-                category: matchedExercises[0].category || 'general', // KEY FIX: Use valid category
-                routine: matchedExercises
+                category: uniqueMatches[0].category || 'general',
+                routine: uniqueMatches
             };
         }
     }
@@ -258,23 +299,23 @@ exports.generatePainReliefRoutine = async (painName, language = "en") => {
 };
 
 /* ===============================
-   Nutrition Plan (Unchanged)
+   Nutrition Plan
 =============================== */
 
 exports.generateNutritionPlan = async (userId, language = "en") => {
-    // ... (keep existing implementation)
+    // ... (existing implementation)
 };
 
 /* ===============================
-   Posture Analysis (Unchanged)
+   Posture Analysis
 =============================== */
 
 exports.analyzePosture = (postureData, language = "en") => {
-    // ... (keep existing implementation)
+    // ... (existing implementation)
 };
 
 /* ===============================
-   New: Get Exercise by ID
+   Get Exercise by ID
 =============================== */
 
 exports.getExerciseById = (exerciseId) => {
