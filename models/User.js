@@ -7,6 +7,10 @@ const UserSchema = new mongoose.Schema({
     age: { type: Number },
     healthConditions: { type: [String] },
     language: { type: String, default: 'en' }, // en or hi
+    goals: {
+        steps: { type: Number, default: 0 },
+        exerciseMinutes: { type: Number, default: 0 }
+    },
     createdAt: { type: Date, default: Date.now }
 });
 
