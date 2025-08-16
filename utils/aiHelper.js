@@ -226,31 +226,39 @@ exports.generateExercisePlan = (searchTerm, category, userId) => {
         };
     }
 
-    // 3. Handle general exercise searches (FIXED IMPLEMENTATION)
+    // 3. Handle general exercise searches (FIXED VERSION)
     if (searchTerm) {
-        const term = normalizeSearchTerm(searchTerm);
+        const term = searchTerm.toLowerCase().trim();
         
         // Priority 1: Exact title match
         const exactMatches = ALL_EXERCISES.filter(ex => 
-            normalizeSearchTerm(ex.title) === term
+            ex.title.toLowerCase() === term
         );
         
-        // Priority 2: Exact in description
+        // Priority 2: Exact match in description
         const descExactMatches = ALL_EXERCISES.filter(ex => 
-            ex.description && normalizeSearchTerm(ex.description).includes(term)
+            ex.description && ex.description.toLowerCase().includes(term)
         );
         
-        // Priority 3: Partial matches
-        const partialMatches = ALL_EXERCISES.filter(ex => 
-            normalizeSearchTerm(ex.title).includes(term) || 
-            (ex.description && normalizeSearchTerm(ex.description).includes(term))
+        // Priority 3: Partial title matches (whole words only)
+        const partialTitleMatches = ALL_EXERCISES.filter(ex => 
+            ex.title.toLowerCase().split(/\s+/).some(word => word === term)
+        );
+        
+        // Priority 4: Partial description matches (whole words only)
+        const partialDescMatches = ALL_EXERCISES.filter(ex => 
+            ex.description && ex.description.toLowerCase().split(/\s+/).some(word => word === term)
         );
         
         // Combine with priority order and remove duplicates
-        const uniqueMatches = [...exactMatches, ...descExactMatches, ...partialMatches]
-            .filter((ex, index, self) => 
-                index === self.findIndex(e => e.id === ex.id)
-            );
+        const uniqueMatches = [
+            ...exactMatches,
+            ...descExactMatches,
+            ...partialTitleMatches,
+            ...partialDescMatches
+        ].filter((ex, index, self) => 
+            index === self.findIndex(e => e.id === ex.id)
+        );
         
         if (uniqueMatches.length > 0) {
             return {
