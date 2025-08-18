@@ -1,4 +1,3 @@
-// controllers/exerciseController.js
 const aiHelper = require('../utils/aiHelper');
 const Exercise = require('../models/Exercise');
 
@@ -9,78 +8,18 @@ const PAIN_KEYWORDS = [
 ];
 
 exports.getExercise = async (req, res) => {
-    const { searchTerm, category, language = 'en' } = req.body;
+    const { searchTerm, language = 'en' } = req.body;
 
     if (!searchTerm || searchTerm.trim() === '') {
         return res.status(400).json({ error: 'searchTerm is required' });
     }
 
     try {
-        const queryLower = searchTerm.toLowerCase();
-
-        // =========================
-        // 1. Handle Pain Search (returns 2-3 exercises)
-        // =========================
-        if (isPainProblem(queryLower)) {
-            const painExercises = await aiHelper.generatePainReliefRoutine(searchTerm, language);
-            
-            // Save and return the pain relief exercises
-            const savedExercises = await Promise.all(
-                painExercises.map(async (ex) => {
-                    const exerciseDetails = await aiHelper.getExerciseById(ex.id) || {};
-                    return await new Exercise({
-                        user: req.user?.id,
-                        title: ex.title,
-                        description: ex.description || exerciseDetails.description,
-                        duration: ex.duration || exerciseDetails.duration,
-                        category: 'pain-relief',
-                        instructions: ex.instructions,
-                        postureId: ex.id,
-                        benefits: exerciseDetails.benefits || []
-                    }).save();
-                })
-            );
-
-            return res.json({
-                type: 'pain-relief',
-                pain: searchTerm,
-                exercises: savedExercises
-            });
-        }
-
-        // =========================
-        // 2. Handle Category Tab Click (direct to posture)
-        // =========================
-        if (category && ['yoga', 'strength', 'cardio'].includes(category.toLowerCase())) {
-            const categoryExercises = await aiHelper.generateExercisePlan(null, category);
-            const postureExercises = categoryExercises.routine.map(ex => ({
-                ...ex,
-                postureLink: `/posture/${ex.id}`
-            }));
-
-            return res.json({
-                type: 'category',
-                category,
-                exercises: postureExercises
-            });
-        }
-
-        // =========================
-        // 3. Handle Exercise Search (single exercise)
-        // =========================
-        // First try exact match
+        // 1️⃣ Check if exercise exists in DB
         let exercise = await Exercise.findOne({
             title: { $regex: `^${searchTerm}$`, $options: 'i' }
         });
 
-        // Then try partial match
-        if (!exercise) {
-            exercise = await Exercise.findOne({
-                title: { $regex: searchTerm, $options: 'i' }
-            });
-        }
-
-        // If found in DB, return with posture link
         if (exercise) {
             return res.json({
                 ...exercise.toObject(),
@@ -88,24 +27,24 @@ exports.getExercise = async (req, res) => {
             });
         }
 
-        // =========================
-        // 4. AI Fallback for new exercises
-        // =========================
-        const aiPlan = await aiHelper.generateExercisePlan(searchTerm, category, req.user?.id);
+        // 2️⃣ Generate exercise dynamically using AI
+        const aiPlan = await aiHelper.generateExercisePlan(searchTerm, null, req.user?.id);
         const firstExercise = Array.isArray(aiPlan.routine) ? aiPlan.routine[0] : aiPlan.routine;
         const exerciseDetails = await aiHelper.getExerciseById(firstExercise?.id) || {};
 
+        // 3️⃣ Save AI-generated exercise in DB for caching
         const newExercise = await new Exercise({
             user: req.user?.id,
             title: firstExercise?.title || searchTerm,
-            description: firstExercise?.description || exerciseDetails.description,
-            duration: firstExercise?.duration || exerciseDetails.duration,
-            category: aiPlan.category || category || 'general',
+            description: firstExercise?.description || exerciseDetails.description || 'Follow proper form',
+            duration: firstExercise?.duration || exerciseDetails.duration || 10,
+            category: aiPlan.category || 'general',
             instructions: firstExercise?.instructions || ['Follow proper form'],
-            postureId: firstExercise?.id,
+            postureId: firstExercise?.id || searchTerm.toLowerCase().replace(/\s+/g, '-'),
             benefits: exerciseDetails.benefits || []
         }).save();
 
+        // 4️⃣ Return exercise info
         return res.json({
             ...newExercise.toObject(),
             postureLink: `/posture/${newExercise.postureId || newExercise._id}`
@@ -131,10 +70,38 @@ exports.getExercisesByCategory = async (req, res) => {
             return res.status(400).json({ error: 'Invalid category' });
         }
 
-        const exercises = await aiHelper.generateExercisePlan(null, category);
-        const response = exercises.routine.map(ex => ({
-            ...ex,
-            postureLink: `/posture/${ex.id}`
+        // Generate exercises dynamically using AI
+        const aiPlan = await aiHelper.generateExercisePlan(null, category);
+
+        const exercises = Array.isArray(aiPlan.routine)
+            ? aiPlan.routine
+            : [aiPlan.routine];
+
+        // Optionally, save generated exercises in DB for caching
+        const savedExercises = await Promise.all(
+            exercises.map(async (ex) => {
+                const existing = await Exercise.findOne({ title: ex.title });
+                if (existing) return existing;
+
+                const exerciseDetails = await aiHelper.getExerciseById(ex.id) || {};
+
+                return await new Exercise({
+                    user: req.user?.id,
+                    title: ex.title,
+                    description: ex.description || exerciseDetails.description || 'Follow proper form',
+                    duration: ex.duration || exerciseDetails.duration || 10,
+                    category: category.toLowerCase(),
+                    instructions: ex.instructions || ['Follow proper form'],
+                    postureId: ex.id,
+                    benefits: exerciseDetails.benefits || []
+                }).save();
+            })
+        );
+
+        // Return exercises with postureLink
+        const response = savedExercises.map(ex => ({
+            ...ex.toObject(),
+            postureLink: `/posture/${ex.postureId || ex._id}`
         }));
 
         return res.json({
@@ -145,12 +112,13 @@ exports.getExercisesByCategory = async (req, res) => {
 
     } catch (err) {
         console.error('Error in getExercisesByCategory:', err);
-        return res.status(500).json({ 
+        return res.status(500).json({
             error: 'Server error',
-            message: err.message 
+            message: err.message
         });
     }
 };
+
 
 // =========================
 // Helper Functions

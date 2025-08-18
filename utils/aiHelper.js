@@ -178,31 +178,32 @@ const PAIN_EXERCISES = {
 };
 
 /* ===============================
-   Search Term Normalization
+   Normalize search terms (variants)
 =============================== */
-
 const normalizeSearchTerm = (term) => {
     const variations = {
-        'pushup': 'push-up',
-        'push ups': 'push-up',
-        'pushups': 'push-up',
-        'squats': 'squat',
-        'jumpingjack': 'jumping-jack'
+        'pushup': 'push-ups',
+        'push ups': 'push-ups',
+        'pushups': 'push-ups',
+        'squats': 'bodyweight-squats',
+        'jumpingjack': 'jumping-jacks',
+        'jumping jacks': 'jumping-jacks',
+        'run': 'high-knees',
+        'running': 'high-knees',
+        'jog': 'high-knees',
+        'jogging': 'high-knees'
     };
     
     let normalized = term.toLowerCase().trim();
-    
     Object.entries(variations).forEach(([variant, standard]) => {
-        normalized = normalized.replace(new RegExp(variant, 'g'), standard);
+        normalized = normalized.replace(new RegExp(`\\b${variant}\\b`, 'g'), standard);
     });
-    
     return normalized;
 };
 
 /* ===============================
    Enhanced Exercise Search Logic
 =============================== */
-
 exports.generateExercisePlan = (searchTerm, category, userId) => {
     // 1. Handle category-based requests
     if (category && EXERCISES[category]) {
@@ -214,52 +215,33 @@ exports.generateExercisePlan = (searchTerm, category, userId) => {
     }
 
     // 2. Handle pain-specific searches
-    const painKey = Object.keys(PAIN_EXERCISES).find(pain => 
-        searchTerm.toLowerCase().includes(pain)
-    );
-    
-    if (painKey) {
-        return {
-            title: `${painKey.charAt(0).toUpperCase() + painKey.slice(1)} Relief Routine`,
-            category: 'pain-relief',
-            routine: PAIN_EXERCISES[painKey]
-        };
+    if (searchTerm) {
+        const painKey = Object.keys(PAIN_EXERCISES).find(pain =>
+            searchTerm.toLowerCase().includes(pain)
+        );
+        if (painKey) {
+            return {
+                title: `${painKey.charAt(0).toUpperCase() + painKey.slice(1)} Relief Routine`,
+                category: 'pain-relief',
+                routine: PAIN_EXERCISES[painKey]
+            };
+        }
     }
 
-    // 3. Handle general exercise searches (FIXED VERSION)
+    // 3. Handle general exercise searches
     if (searchTerm) {
-        const term = searchTerm.toLowerCase().trim();
-        
+        const term = normalizeSearchTerm(searchTerm);
+
         // Priority 1: Exact title match
-        const exactMatches = ALL_EXERCISES.filter(ex => 
-            ex.title.toLowerCase() === term
-        );
-        
-        // Priority 2: Exact match in description
-        const descExactMatches = ALL_EXERCISES.filter(ex => 
-            ex.description && ex.description.toLowerCase().includes(term)
-        );
-        
-        // Priority 3: Partial title matches (whole words only)
-        const partialTitleMatches = ALL_EXERCISES.filter(ex => 
-            ex.title.toLowerCase().split(/\s+/).some(word => word === term)
-        );
-        
-        // Priority 4: Partial description matches (whole words only)
-        const partialDescMatches = ALL_EXERCISES.filter(ex => 
-            ex.description && ex.description.toLowerCase().split(/\s+/).some(word => word === term)
-        );
-        
-        // Combine with priority order and remove duplicates
-        const uniqueMatches = [
-            ...exactMatches,
-            ...descExactMatches,
-            ...partialTitleMatches,
-            ...partialDescMatches
-        ].filter((ex, index, self) => 
-            index === self.findIndex(e => e.id === ex.id)
-        );
-        
+        const exactMatches = ALL_EXERCISES.filter(ex => ex.title.toLowerCase() === term);
+
+        // Priority 2: Partial title matches
+        const partialTitleMatches = ALL_EXERCISES.filter(ex => ex.title.toLowerCase().includes(term));
+
+        // Combine matches with priority and remove duplicates
+        const uniqueMatches = [...exactMatches, ...partialTitleMatches]
+            .filter((ex, index, self) => index === self.findIndex(e => e.id === ex.id));
+
         if (uniqueMatches.length > 0) {
             return {
                 title: `Search Results for "${searchTerm}"`,
@@ -267,9 +249,19 @@ exports.generateExercisePlan = (searchTerm, category, userId) => {
                 routine: uniqueMatches
             };
         }
+
+        // 4. Fallback: return mapped exercise if normalized
+        const fallback = ALL_EXERCISES.find(ex => ex.id === term);
+        if (fallback) {
+            return {
+                title: `Search Results for "${searchTerm}"`,
+                category: fallback.category,
+                routine: [fallback]
+            };
+        }
     }
 
-    // 4. Default fallback
+    // 5. Default fallback
     return {
         title: "Beginner Routine",
         category: "yoga",
@@ -280,7 +272,6 @@ exports.generateExercisePlan = (searchTerm, category, userId) => {
 /* ===============================
    Enhanced Pain Relief Logic
 =============================== */
-
 exports.generatePainReliefRoutine = async (painName, language = "en") => {
     const key = painName.toLowerCase();
     const exercises = PAIN_EXERCISES[key] || [
@@ -307,25 +298,8 @@ exports.generatePainReliefRoutine = async (painName, language = "en") => {
 };
 
 /* ===============================
-   Nutrition Plan
-=============================== */
-
-exports.generateNutritionPlan = async (userId, language = "en") => {
-    // ... (existing implementation)
-};
-
-/* ===============================
-   Posture Analysis
-=============================== */
-
-exports.analyzePosture = (postureData, language = "en") => {
-    // ... (existing implementation)
-};
-
-/* ===============================
    Get Exercise by ID
 =============================== */
-
 exports.getExerciseById = (exerciseId) => {
     return ALL_EXERCISES.find(ex => ex.id === exerciseId) || null;
 };
