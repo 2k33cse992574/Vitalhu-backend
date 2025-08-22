@@ -103,7 +103,7 @@ const EXERCISES = {
       description: "Classic upper body exercise working chest, shoulders and arms",
       benefits: ["Upper body strength", "Core stability", "No equipment needed"],
       painRelief: [],
-      keywords: ["push up", "push-up", "pushups", "upper body strength"]
+      keywords: ["push up", "push-up", "pushups", "upper body strength", "push ups"]
     },
     {
       id: "glute-bridge",

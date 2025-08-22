@@ -13,7 +13,7 @@ const progressRoutes = require('./routes/progress');
 const exerciseRoutes = require('./routes/exerciseRoutes');
 // const painReliefRoutes = require('./routes/painRelief'); // Removed
 const nutritionRoutes = require('./routes/nutrition');
-const postureRoutes = require('./routes/posture');
+const workoutRoutes = require('./routes/workout');
 const notificationRoutes = require('./routes/notifications');
 
 const app = express();
@@ -32,7 +32,7 @@ app.use('/progress', progressRoutes);
 app.use('/exercise', exerciseRoutes);
 // app.use('/pain-relief', painReliefRoutes); // Removed
 app.use('/nutrition', nutritionRoutes);
-app.use('/posture-check', postureRoutes);
+app.use('/workout', workoutRoutes); 
 app.use('/notifications', notificationRoutes);
 
 // Default route
